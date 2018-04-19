@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# Computer Associates
+#
+#__LINUX_INIT_INFO__
+# chkconfig: 2345 99 01
+# description: CA SSO Policy Server service
+
+### BEGIN INIT INFO
+# Provides: smpolicy
+# Required-Start: $network $dxserver
+# Required-Stop: $network
+# Default-Start: 2 3 5
+# Default-Stop:  0 1 6
+# Description: CA SSO Policy Server
+### END INIT INFO
+
+sleep 120
+
+case "$1" in
+
+'start')
+
+su - srcpsusr -c /apps/CA/siteminder/start-all &
+
+;;
+
+'stop')
+
+su - srcpsusr -c /apps/CA/siteminder/stop-all &
+
+;;
+
+esac

@@ -1,0 +1,160 @@
+#!/bin/sh
+#
+# Computer Associates
+#
+# dxserver/install/dxinitrc.skl ($Revision: 4.31 $)
+#
+#__LINUX_INIT_INFO__
+# chkconfig: 2345 98 01  
+# description: CA Directory service 
+
+### BEGIN INIT INFO 
+# Provides: dxserver 
+# Required-Start: $local_fs $network $remote_fs 
+# Required-Stop: $local_fs $network $remote_fs 
+# Default-Start: 2 3 5 
+# Default-Stop:  0 1 6 
+# Description: CA Directory 
+### END INIT INFO
+
+# Determine absolute path to su to fix HP problems
+if [ -x /usr/bin/su ]; then
+    SU=/usr/bin/su
+elif [ -x /bin/su ]; then
+    SU=/bin/su
+else
+    SU=su
+fi
+if [ -x /usr/bin/xargs ]; then
+    XARGS=/usr/bin/xargs
+elif [ -x /bin/xargs ]; then
+    XARGS=/bin/xargs
+else
+    XARGS=xargs
+fi
+
+DXHOME=/apps/CA/Directory/dxserver
+DXWEBHOME=/apps/CA/Directory/dxwebserver
+DXUIHOME=
+if [ -d $DXHOME ] ; then
+    DXUSER=`(cd $DXHOME ; ls -od . | awk '{print $3}')`
+else
+    DXUSER=dsa
+fi
+
+if [ -d $DXWEBHOME ] ; then
+    DXWEBSERVERUSER=`(cd $DXWEBHOME ; ls -od . | awk '{print $3}')`
+else
+    DXWEBSERVERUSER=dsa
+fi
+
+if [ -d $DXHOME/logs ]; then
+    DXLOG=$DXHOME/logs/dxserver-rc.log
+else
+    DXLOG=/tmp/dxserver-rc.log
+fi
+
+case "$1" in
+
+    start_msg)
+        echo "Start CA Directory"
+        ;;
+
+    stop_msg)
+        echo "Stopping CA Directory"
+        ;;
+
+    'start')
+
+	echo | tee -a $DXLOG
+        date >> $DXLOG
+
+        # start dxagent if it exists
+	if [ -x $DXHOME/dxagent/start_dxagent.sh ]; then
+            echo "Starting DXagent" | tee -a $DXLOG
+            $SU - $DXUSER -c "cd ${DXHOME}/dxagent; ./start_dxagent.sh&" >> $DXLOG 2>&1
+        fi
+
+        # start management UI node.js server if it exists
+	if [ -x $DXUIHOME/start_dxmgmtui ]; then
+            echo "Starting CA Directory Management UI node.js server" | tee -a $DXLOG
+            $SU - $DXUSER -c "cd ${DXUIHOME}; ./start_dxmgmtui" >> $DXLOG 2>&1
+        fi
+
+        # start dxadmind if it still exists
+	if [ -x $DXWEBHOME/bin/dxadmind ]; then
+            echo "Starting the DXadmin daemon" | tee -a $DXLOG
+            $SU - $DXUSER -c "dxadmind start" >> $DXLOG 2>&1
+        fi
+
+        # start tomcat servlett runner for DXwebserver
+        if [ -x $DXWEBHOME/bin/dxwebserver.sh ]; then
+            echo "Starting DXwebserver" | tee -a $DXLOG
+            $SU - $DXWEBSERVERUSER -c "$DXWEBHOME/bin/dxwebserver.sh start" >> $DXLOG 2>&1
+        fi
+
+        WAITPIDS=""
+        # autostart any DXservers
+        if [ -d $DXHOME/config/autostart ] ; then
+            cd $DXHOME/config/autostart
+            SERVERS=`ls | $XARGS`
+            if [ "$SERVERS" ] ; then
+                # start DXservers as the owner of the autostart directory
+                echo "Starting DXservers: $SERVERS ..." | tee -a $DXLOG
+                for SVR in $SERVERS ; do
+		    if [ -f $DXHOME/config/servers/$SVR.dxi ] ; then
+			$SU - $DXUSER -c "dxserver start $SVR" >> $DXLOG 2>&1 &
+		    else
+			echo "Cannot find server $SVR" >> $DXLOG 2>&1 &
+		    fi
+
+                    WAITPIDS="$WAITPIDS $!"
+                done
+            fi
+        fi
+        # Wait for DXservers to finish initialising
+        [ -n "$WAITPIDS" ] && wait $WAITPIDS
+
+        # Add subsys entry for Linux to ensure item gets shutdown properly
+        [ -d /var/lock/subsys ] && touch /var/lock/subsys/dxserver
+        ;;
+
+    'stop')
+	echo | tee -a $DXLOG
+        date >> $DXLOG
+
+        # stop any DXservers
+        echo | tee -a $DXLOG
+        echo "Stopping DXservers ..." | tee -a $DXLOG
+        for SERVER in `ls $DXHOME/config/servers/*.dxi`; do
+            STRIP=`basename $SERVER \.dxi`
+            $SU - $DXUSER -c "dxserver forcestop $STRIP" >> $DXLOG 2>&1
+        done
+
+	echo | tee -a $DXLOG
+        $SU - $DXUSER -c "dxserver status" >> $DXLOG 2>&1
+
+        # stop dxadmind
+	echo | tee -a $DXLOG
+        echo "Stopping the DXadmin daemon" | tee -a $DXLOG
+        $SU - $DXUSER -c "dxadmind stop" >> $DXLOG 2>&1
+
+        # stop tomcat servlett runners used for DXweb
+        if [ -x $DXWEBHOME/bin/dxwebserver.sh ]; then
+            echo "Stopping dxwebserver" |tee -a $DXLOG
+            $SU - $DXWEBSERVERUSER -c "$DXWEBHOME/bin/dxwebserver.sh stop" >> $DXLOG 2>&1
+        fi
+
+        # Remove subsys entry for Linux
+        [ -f /var/lock/subsys/dxserver ] && rm -f /var/lock/subsys/dxserver
+        ;;
+
+    *)
+        echo "Usage: $0 { start | stop | start_msg | stop_msg }"
+        ;;
+
+esac
+
+exit 0
+
+

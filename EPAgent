@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+#__LINUX_INIT_INFO__
+# chkconfig: 2345 20 80
+# description: CA APM
+
+### BEGIN INIT INFO
+# Provides: EPAgent
+# Required-Start: $local_fs $network $syslog
+# Should-Start:
+# Required-Stop:
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: CA APM Environment Performance Agent
+# Description: CA APM Standalone EPAgent
+### END INIT INFO
+
+case "$1" in
+
+        'start')
+
+                su - srcpsusr -c /apps/CA/CAAPM/epagent10.5.2/epagent/bin/start-epagent &
+
+        ;;
+
+        'stop')
+
+                su - srcpsusr -c /apps/CA/CAAPM/epagent10.5.2/epagent/bin/stop-epagent &
+
+        ;;
+
+esac

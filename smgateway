@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+#__LINUX_INIT_INFO__
+# chkconfig: 2345 99 01
+# description: CA Access Gateway service
+
+### BEGIN INIT INFO
+# Provides: smgateway
+# Required-Start: $network
+# Required-Stop: $network
+# Default-Start: 2 3 5
+# Default-Stop:  0 1 6
+# Description: CA Access Gateway
+### END INIT INFO
+
+sleep 30
+
+case "$1" in
+
+'start')
+
+su - srcagusr -c "/apps/CA/secure-proxy/proxy-engine/sps-ctl startssl"
+
+;;
+
+'stop')
+
+su - srcagusr -c "/apps/CA/secure-proxy/proxy-engine/sps-ctl stop"
+
+;;
+
+esac

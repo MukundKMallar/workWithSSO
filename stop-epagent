@@ -1,0 +1,3 @@
+#!/bin/sh
+EPAgentHOME=/apps/CA/CAAPM/epagent10.5.2/epagent/bin/
+$EPAgentHOME/EPACtrl.sh stop
